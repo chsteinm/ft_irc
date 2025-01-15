@@ -2,9 +2,10 @@ NAME = ircserv
 CC = c++
 FLAGS = -Wall -Wextra -Werror -MMD -MP -std=c++98 -g3
 BUILD_DIR = .build
-SRCS = main Server
+SRCS = main Server Client
 CPPFILES = $(addsuffix .cpp, $(SRCS))
 OBJS = $(addprefix $(BUILD_DIR)/,$(CPPFILES:.cpp=.o))
+DEBUG = -D DEBUG_MODE=1
 
 all: $(NAME)
 
@@ -28,7 +29,11 @@ re: fclean
 	@make --no-print-directory
 
 run: all
-	./$(NAME)
+	./$(NAME) 2222 2
+
+debug: FLAGS += $(DEBUG)
+debug: all
+	valgrind --leak-check=full ./$(NAME) 2222 2
 
 .PHONY: all clean fclean re run
 

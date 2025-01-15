@@ -19,13 +19,20 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
-// #include "Client.hpp"
+
+#include "Client.hpp"
 // #include <list>
 // #include "Commands.hpp"
 
 // extern int				 exit_state;
 
-// class	Client;
+#define BUFFER_SIZE 1024
+
+#ifndef DEBUG_MODE
+#define DEBUG_MODE 0
+#endif
+
+class	Client;
 // class   Channel;
 
 static bool exitSIG = false;
@@ -35,6 +42,7 @@ class Server {
         const char*					_password;
 		std::vector<pollfd>			_sockets;
 		int 						_server_fd;
+		std::map<int, Client*>			_clients;
 	
     public:
         Server();
@@ -44,7 +52,10 @@ class Server {
 		void	init(int port);
 		void 	makeNonBlocking(int fd);
 		void	run();
-		std::string				getPassword();
+		void	addClient();
+		void	handleReception(int client_fd);
+		void	removeClient(int client_fd);
+		// std::string				getPassword();
 };
 
 #endif

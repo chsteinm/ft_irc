@@ -32,7 +32,7 @@ run: all
 	./$(NAME) 2222 2
 
 debug: FLAGS += $(DEBUG)
-debug: all
+debug: clean all
 	valgrind --leak-check=full ./$(NAME) 2222 2
 
 .PHONY: all clean fclean re run

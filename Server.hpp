@@ -27,6 +27,7 @@
 // extern int				 exit_state;
 
 #define BUFFER_SIZE 1024
+#define SOMAXCON 10
 
 #ifndef DEBUG_MODE
 #define DEBUG_MODE 0
@@ -55,7 +56,12 @@ class Server {
 		void	addClient();
 		void	handleReception(int client_fd);
 		void	removeClient(int client_fd);
-		// std::string				getPassword();
+
+		std::vector<std::string>	splitCmd(std::string str);
+		
+		void	cap(Client *client, std::vector<std::string> cmd);
+		void	nick(Client *client, std::vector<std::string> cmd);
+		void	user(Client *client, std::vector<std::string> cmd);
 };
 
 #endif

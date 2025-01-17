@@ -79,7 +79,13 @@ void    Server::handleReception(int client_fd) {
         {
             std::vector<std::string>	cmd = splitCmd(line);
             if (!cmd.empty()) {
-                // command_handler(_clientList[it->fd], received);
+                if (_cmdMap.find(cmd[0]) != _cmdMap.end()) {
+                    (this->*_cmdMap[cmd[0]])(_clients[client_fd], cmd);
+                } 
+                else {
+                    std::cout << "nop\n";
+                }
+                
             }
         }
     }
@@ -126,6 +132,7 @@ void    Server::init(int port) {
         throw std::runtime_error("Listen failed");
     pollfd pfd = {_server_fd, POLLIN, 0};
     _sockets.push_back(pfd);
+    initCmdMap();
 }
 
 Server::Server(int port, const char* pass) : _password(pass) {
@@ -136,13 +143,79 @@ Server::Server(int port, const char* pass) : _password(pass) {
         run();
 }
 
-void Server::initCmdMap() {
+void    Server::initCmdMap() {
     std::string cmdName[11] = {"CAP", "PASS", "NICK", "USER", "PRIVMSG", "TOPIC", "JOIN", "MODE", "KICK", "INVITE", "QUIT"};
-    void (*cmdFunction[11])(Client*, std::vector<std::string>) = {&cap, &pass, &nick, &user, &privmsg, &topic, &join, &Mode, &kick, &invite, &quit};
+    void (Server::*cmdFunction[11])(Client*, std::vector<std::string>) = {&Server::cap, &Server::pass, &Server::nick, &Server::user, &Server::privmsg, &Server::topic, &Server::join, &Server::mode, &Server::kick, &Server::invite, &Server::quit};
 
     for (int i = 0; i < 11; ++i) {
         _cmdMap[cmdName[i]] = cmdFunction[i];
     }
+}
+
+void    Server::cap(Client* client, std::vector<std::string> args) {
+    std::cout << "CAP FUNCTION\n";
+    (void)client;
+    (void)args;
+}
+
+void    Server::pass(Client* client, std::vector<std::string> args) {
+    (void)client;
+    (void)args;
+    
+}
+
+void    Server::nick(Client* client, std::vector<std::string> args) {
+    (void)client;
+    (void)args;
+    
+}
+
+void    Server::user(Client* client, std::vector<std::string> args) {
+    (void)client;
+    (void)args;
+    
+}
+
+void    Server::privmsg(Client* client, std::vector<std::string> args) {
+    (void)client;
+    (void)args;
+    
+}
+
+void    Server::topic(Client* client, std::vector<std::string> args) {
+    (void)client;
+    (void)args;
+    
+}
+
+void    Server::join(Client* client, std::vector<std::string> args) {
+    (void)args;
+    (void)client;
+    
+}
+
+void    Server::mode(Client* client, std::vector<std::string> args) {
+    (void)client;
+    (void)args;
+    
+}
+
+void    Server::kick(Client* client, std::vector<std::string> args) {
+    (void)args;
+    (void)client;
+    
+}
+
+void    Server::invite(Client* client, std::vector<std::string> args) {
+    (void)args;
+    (void)client;
+    
+}
+
+void    Server::quit(Client* client, std::vector<std::string> args) {
+    (void)args;
+    (void)client;
+    
 }
 
 Server::~Server() {

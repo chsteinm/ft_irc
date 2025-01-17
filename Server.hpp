@@ -44,7 +44,7 @@ class Server {
 		std::vector<pollfd>			_sockets;
 		int 						_server_fd;
 		std::map<int, Client*>		_clients;
-		std::map<std::string, void (*)(Client*, std::vector<std::string>)> _cmdMap;
+		std::map<std::string, void (Server::*)(Client*, std::vector<std::string>)> _cmdMap;
 	
     public:
         Server();
@@ -65,6 +65,13 @@ class Server {
 		void	pass(Client* client, std::vector<std::string> cmd);
 		void	nick(Client* client, std::vector<std::string> cmd);
 		void	user(Client* client, std::vector<std::string> cmd);
+		void	privmsg(Client* client, std::vector<std::string> cmd);
+		void	topic(Client* client, std::vector<std::string> cmd);
+		void	join(Client* client, std::vector<std::string> cmd);
+		void	mode(Client* client, std::vector<std::string> cmd);
+		void	kick(Client* client, std::vector<std::string> cmd);
+		void	invite(Client* client, std::vector<std::string> cmd);
+		void	quit(Client* client, std::vector<std::string> cmd);
 };
 
 #endif

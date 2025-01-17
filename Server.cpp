@@ -14,9 +14,9 @@ void    sigHandler(int sig) {
 }
 
 void    Server::addClient() {
-    sockaddr_in client_addr;
-    socklen_t client_len = sizeof(client_addr);
-    int client_fd = accept(this->_server_fd, (sockaddr *)&client_addr, &client_len);
+    sockaddr_in clientAddr;
+    socklen_t clientLen = sizeof(clientAddr);
+    int client_fd = accept(this->_server_fd, (sockaddr *)&clientAddr, &clientLen);
     if (client_fd == -1) 
     {
         perror("Accept failed");
@@ -25,7 +25,7 @@ void    Server::addClient() {
     makeNonBlocking(client_fd);
     pollfd pfd = {client_fd, POLLIN, 0};
     this->_sockets.push_back(pfd);
-    Client  *client = new Client(client_fd);
+    Client  *client = new Client(client_fd, inet_ntoa(clientAddr.sin_addr));
     this->_clients[client_fd] = client;
     std::cout << "New client connected: " << client_fd << std::endl;
 }
@@ -66,12 +66,11 @@ void    Server::handleReception(int client_fd) {
     if (bytes_received <= 0) {
         std::cout << "Client " << client_fd << " disconnected." << std::endl;
         removeClient(client_fd);
-        // return;
+        return;
     }
     else {
         _clients[client_fd]->setBuffer(buffer);
-        // if (_clients[client_fd]->getBuffer().find_first_of("\r\n") == std::string::npos)
-        if (_clients[client_fd]->getBuffer().find("\r\n") == std::string::npos)
+        if (_clients[client_fd]->getBuffer().find_first_of("\r\n") == std::string::npos)
 			return;
         std::vector<std::string>    cmd;
         std::istringstream ss(_clients[client_fd]->getBuffer());
@@ -86,8 +85,9 @@ void    Server::handleReception(int client_fd) {
     }
 
     if (DEBUG_MODE)
-        std::cout << "\033[36mData receive from client " << client_fd << ":\n" << buffer << "\033[0m" << std::endl;
+        std::cout << "\033[36mData receive from client " << client_fd << ":\n" << _clients[client_fd]->getBuffer() << "\033[0m" << std::endl;
     
+    _clients[client_fd]->clearBuff();
 }
 
 void    Server::run() {
@@ -134,6 +134,15 @@ Server::Server(int port, const char* pass) : _password(pass) {
     std::cout << std::endl << "\tServer initialized on port " << port << "..." << std::endl << std::endl;
     while (exitSIG == false)
         run();
+}
+
+void Server::initCmdMap() {
+    std::string cmdName[11] = {"CAP", "PASS", "NICK", "USER", "PRIVMSG", "TOPIC", "JOIN", "MODE", "KICK", "INVITE", "QUIT"};
+    void (*cmdFunction[11])(Client*, std::vector<std::string>) = {&cap, &pass, &nick, &user, &privmsg, &topic, &join, &Mode, &kick, &invite, &quit};
+
+    for (int i = 0; i < 11; ++i) {
+        _cmdMap[cmdName[i]] = cmdFunction[i];
+    }
 }
 
 Server::~Server() {

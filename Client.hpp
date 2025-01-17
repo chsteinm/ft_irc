@@ -9,13 +9,14 @@ class Client
 private:
 	int			_fd;
 	int			_registered;
+	std::string	_ip;
 	std::string	_nick;
 	std::string	_user;
 	std::string	_realName;
 	std::string	_buffer;
 public:
 	Client();
-	Client(int fd);
+	Client(int fd, std::string clientIP);
 	~Client();
 
 	//Getters
@@ -33,6 +34,8 @@ public:
 	void	setRealName(std::string& RealName);
 	void	setBuffer(std::string receivedBuff);
 	// void	setFd(int fd);
+
+	void	clearBuff();
 };
 
 #endif

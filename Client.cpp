@@ -5,8 +5,7 @@ Client::Client()
 	_fd = -1;
 }
 
-Client::Client(int fd) {
-	_fd = fd;
+Client::Client(int fd, std::string ip) : _fd(fd), _ip(ip) {
 	_registered = false;
 }
 
@@ -56,6 +55,10 @@ void	Client::setRealName(std::string& realName) {
 
 void	Client::setBuffer(std::string recievedBuff) {
 	_buffer += recievedBuff;
+}
+
+void	Client::clearBuff() {
+	_buffer.clear();
 }
 
 // void	Client::setFd(int fd) {

@@ -43,7 +43,8 @@ class Server {
         const char*					_password;
 		std::vector<pollfd>			_sockets;
 		int 						_server_fd;
-		std::map<int, Client*>			_clients;
+		std::map<int, Client*>		_clients;
+		std::map<std::string, void (*)(Client*, std::vector<std::string>)> _cmdMap;
 	
     public:
         Server();
@@ -59,9 +60,11 @@ class Server {
 
 		std::vector<std::string>	splitCmd(std::string str);
 		
-		void	cap(Client *client, std::vector<std::string> cmd);
-		void	nick(Client *client, std::vector<std::string> cmd);
-		void	user(Client *client, std::vector<std::string> cmd);
+		void	initCmdMap();
+		void	cap(Client* client, std::vector<std::string> cmd);
+		void	pass(Client* client, std::vector<std::string> cmd);
+		void	nick(Client* client, std::vector<std::string> cmd);
+		void	user(Client* client, std::vector<std::string> cmd);
 };
 
 #endif

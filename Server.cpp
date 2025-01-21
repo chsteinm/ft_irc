@@ -69,6 +69,8 @@ void    Server::handleReception(int client_fd) {
         return;
     }
     else {
+
+        
         _clients[client_fd]->setBuffer(buffer);
         if (_clients[client_fd]->getBuffer().find_first_of("\r\n") == std::string::npos)
 			return;
@@ -85,13 +87,12 @@ void    Server::handleReception(int client_fd) {
                 else {
                     std::cout << "nop\n";
                 }
-                
             }
         }
+        if (DEBUG_MODE)
+            std::cout << "\033[36mData receive from client " << client_fd << ":\n" << _clients[client_fd]->getBuffer() << "\033[0m" << std::endl;
     }
 
-    if (DEBUG_MODE)
-        std::cout << "\033[36mData receive from client " << client_fd << ":\n" << _clients[client_fd]->getBuffer() << "\033[0m" << std::endl;
     
     _clients[client_fd]->clearBuff();
 }
@@ -143,6 +144,33 @@ Server::Server(int port, const char* pass) : _password(pass) {
         run();
 }
 
+void Server::sendMessageToClient(int client_fd, const std::string &message) {
+    if (client_fd < 0) {
+        std::cerr << "Invalid client_fd: " << client_fd << std::endl;
+        return;
+    }
+
+    ssize_t bytes_sent = send(client_fd, message.c_str(), message.size(), 0);
+    if (bytes_sent <= 0) 
+    {
+        perror("Send failed");
+        if (errno == EAGAIN || errno == EWOULDBLOCK) 
+        {
+            std::cerr << "Socket send buffer is full. Retry later." << std::endl;
+        } 
+        else if (errno == ECONNRESET || errno == EPIPE) 
+        {
+            if (DEBUG_MODE)
+                std::cout << "[DEBUG] Client " << client_fd << " disconnected. Removing client." << std::endl;
+            removeClient(client_fd);
+        }
+    } 
+    else if (DEBUG_MODE)
+    {
+        std::cout << "[DEBUG] Sent message to client " << client_fd << ": " << message << std::endl;
+    }
+}
+
 void    Server::initCmdMap() {
     std::string cmdName[11] = {"CAP", "PASS", "NICK", "USER", "PRIVMSG", "TOPIC", "JOIN", "MODE", "KICK", "INVITE", "QUIT"};
     void (Server::*cmdFunction[11])(Client*, std::vector<std::string>) = {&Server::cap, &Server::pass, &Server::nick, &Server::user, &Server::privmsg, &Server::topic, &Server::join, &Server::mode, &Server::kick, &Server::invite, &Server::quit};
@@ -153,15 +181,15 @@ void    Server::initCmdMap() {
 }
 
 void    Server::cap(Client* client, std::vector<std::string> args) {
-    std::cout << "CAP FUNCTION\n";
+    if (DEBUG_MODE)
+        std::cout << "CAP FUNCTION\n";
     (void)client;
     (void)args;
 }
 
 void    Server::pass(Client* client, std::vector<std::string> args) {
-    (void)client;
-    (void)args;
-    
+    if (args.size() < 2)
+        
 }
 
 void    Server::nick(Client* client, std::vector<std::string> args) {

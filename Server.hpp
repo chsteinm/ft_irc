@@ -59,6 +59,8 @@ class Server {
 		void	removeClient(int client_fd);
 
 		std::vector<std::string>	splitCmd(std::string str);
+
+		void	sendMessageToClient(int client_fd, const std::string &message);
 		
 		void	initCmdMap();
 		void	cap(Client* client, std::vector<std::string> cmd);

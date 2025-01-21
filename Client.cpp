@@ -58,7 +58,7 @@ void	Client::setBuffer(std::string recievedBuff) {
 }
 
 void	Client::clearBuff() {
-	_buffer.clear();
+		_buffer.clear();
 }
 
 // void	Client::setFd(int fd) {

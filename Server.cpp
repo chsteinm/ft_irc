@@ -13,6 +13,13 @@ void    sigHandler(int sig) {
     }
 }
 
+Client* Server::findClientWithNick(std::string nick) {
+    for (std::map<int, Client*>::iterator it = _clients.begin(); it != _clients.end(); it++)
+        if (it->second->getNick() == nick)
+            return it->second;
+    return NULL;
+}
+
 void    Server::addClient() {
     sockaddr_in clientAddr;
     socklen_t clientLen = sizeof(clientAddr);
@@ -68,32 +75,28 @@ void    Server::handleReception(int client_fd) {
         removeClient(client_fd);
         return;
     }
-    else {
 
-        
-        _clients[client_fd]->setBuffer(buffer);
-        if (_clients[client_fd]->getBuffer().find_first_of("\r\n") == std::string::npos)
-			return;
-        std::vector<std::string>    cmd;
-        std::istringstream ss(_clients[client_fd]->getBuffer());
-        std::string line;
-        while (std::getline(ss, line))
-        {
-            std::vector<std::string>	cmd = splitCmd(line);
-            if (!cmd.empty()) {
-                if (_cmdMap.find(cmd[0]) != _cmdMap.end()) {
-                    (this->*_cmdMap[cmd[0]])(_clients[client_fd], cmd);
-                } 
-                else {
-                    std::cout << "nop\n";
-                }
+    _clients[client_fd]->setBuffer(buffer);
+    if (_clients[client_fd]->getBuffer().find_first_of("\r\n") == std::string::npos)
+        return;
+    std::vector<std::string>    cmd;
+    std::istringstream ss(_clients[client_fd]->getBuffer());
+    std::string line;
+    while (std::getline(ss, line))
+    {
+        std::vector<std::string>	cmd = splitCmd(line);
+        if (!cmd.empty()) {
+            if (_cmdMap.find(cmd[0]) != _cmdMap.end()) {
+                (this->*_cmdMap[cmd[0]])(_clients[client_fd], cmd);
+            } 
+            else {
+                sendMessageToClient(client_fd, ERR_UNKNOWNCOMMAND(_clients[client_fd]->getNick(), cmd[0]));
             }
         }
-        if (DEBUG_MODE)
-            std::cout << "\033[36mData receive from client " << client_fd << ":\n" << _clients[client_fd]->getBuffer() << "\033[0m" << std::endl;
     }
+    if (DEBUG_MODE)
+        std::cout << "\033[36mData receive from client " << client_fd << ":\n" << _clients[client_fd]->getBuffer() << "\033[0m" << std::endl;
 
-    
     _clients[client_fd]->clearBuff();
 }
 
@@ -102,8 +105,8 @@ void    Server::run() {
         throw std::runtime_error("Poll failed");
     for (size_t i = 0; i < this->_sockets.size(); ++i) 
     {
-        if (DEBUG_MODE)
-            std::cout << "\033[36mi = " << i << "\033[0m" << std::endl;
+        // if (DEBUG_MODE)
+        //     std::cout << "\033[36mi = " << i << "\033[0m" << std::endl;
         if (this->_sockets[i].revents & POLLIN) {
             if (this->_sockets[i].fd == this->_server_fd) {
                 addClient();
@@ -189,18 +192,56 @@ void    Server::cap(Client* client, std::vector<std::string> args) {
 
 void    Server::pass(Client* client, std::vector<std::string> args) {
     if (args.size() < 2)
-        
+        sendMessageToClient(client->getFd(), ERR_NEEDMOREPARAMS(client->getNick(), args[0]));
+    else if (client->getRegisterStatus() > NOT_REGISTERED)
+        sendMessageToClient(client->getFd(), ERR_ALREADYREGISTRE(client->getNick()));
+    else if (args[1] != this->_password)
+        sendMessageToClient(client->getFd(), ERR_PASSWDMISMATCH(client->getNick()));
+    else
+        client->setRegister(PASS_OK);
+}
+
+bool	checkNick(std::string nick)
+{
+    if (nick.size() > 9 || isdigit(nick[0])) {
+        return false;
+    }
+	for (std::size_t i = 1; i < nick.size(); i++) {
+		if (!isalnum(nick[i]) && nick[i] != '\\' && nick[i] != '|' && nick[i] != '{' && nick[i] != '}' && nick[i] != '[' && nick[i] != ']' && nick[i] != '_')
+			return false;
+	}
+	return true;
 }
 
 void    Server::nick(Client* client, std::vector<std::string> args) {
-    (void)client;
-    (void)args;
-    
+    if (args.size() < 2)
+        sendMessageToClient(client->getFd(), ERR_NONICKNAMEGIVEN(client->getNick()));
+    else if (!checkNick(args[1]))
+        sendMessageToClient(client->getFd(), ERR_ERRONEUSNICKNAME(args[1]));
+    else if (findClientWithNick(args[1]))
+        sendMessageToClient(client->getFd(), ERR_NICKNAMEINUSE(args[1]));
+    else if (client->getRegisterStatus() >= PASS_OK) {
+        client->setNick(args[1]);
+        client->setRegister(NICK_OK);
+    }
 }
 
 void    Server::user(Client* client, std::vector<std::string> args) {
-    (void)client;
-    (void)args;
+    if (args.size() < 5)
+        sendMessageToClient(client->getFd(), ERR_NEEDMOREPARAMS(client->getNick(), args[0]));
+    else if (client->getRegisterStatus() == REGISTERED)
+        sendMessageToClient(client->getFd(), ERR_ALREADYREGISTRE(client->getNick()));
+    client->setUser(args[1]);
+	client->setRealName(args[4]);
+    if (client->getRegisterStatus() == NICK_OK) {
+        client->setRegister(REGISTERED);
+        sendMessageToClient(client->getFd(), RPL_WELCOME(client->getNick(), args[1], client->getIp()));
+    }
+}
+
+void    Server::join(Client* client, std::vector<std::string> args) {
+    if (args.size() < 2)
+        sendMessageToClient(client->getFd(), ERR_NEEDMOREPARAMS(client->getNick(), args[0]));
     
 }
 
@@ -213,12 +254,6 @@ void    Server::privmsg(Client* client, std::vector<std::string> args) {
 void    Server::topic(Client* client, std::vector<std::string> args) {
     (void)client;
     (void)args;
-    
-}
-
-void    Server::join(Client* client, std::vector<std::string> args) {
-    (void)args;
-    (void)client;
     
 }
 

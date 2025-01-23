@@ -21,20 +21,27 @@
 #include <errno.h>
 
 #include "Client.hpp"
+#include "Replies.hpp"
+#include "Channel.hpp"
 // #include <list>
 // #include "Commands.hpp"
 
 // extern int				 exit_state;
 
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 512
 #define SOMAXCON 10
+
+#define NOT_REGISTERED 0
+#define PASS_OK 1
+#define NICK_OK 2
+#define REGISTERED 3
 
 #ifndef DEBUG_MODE
 #define DEBUG_MODE 0
 #endif
 
 class	Client;
-// class   Channel;
+class   Channel;
 
 static bool exitSIG = false;
 
@@ -44,6 +51,7 @@ class Server {
 		std::vector<pollfd>			_sockets;
 		int 						_server_fd;
 		std::map<int, Client*>		_clients;
+		std::map<int, Channel*>		_channels;
 		std::map<std::string, void (Server::*)(Client*, std::vector<std::string>)> _cmdMap;
 	
     public:
@@ -59,6 +67,8 @@ class Server {
 		void	removeClient(int client_fd);
 
 		std::vector<std::string>	splitCmd(std::string str);
+
+		Client*	findClientWithNick(std::string nick);
 
 		void	sendMessageToClient(int client_fd, const std::string &message);
 		

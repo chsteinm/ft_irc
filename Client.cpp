@@ -6,7 +6,7 @@ Client::Client()
 }
 
 Client::Client(int fd, std::string ip) : _fd(fd), _ip(ip) {
-	_registered = false;
+	_registered = NOT_REGISTERED;
 }
 
 Client::~Client(){}
@@ -32,6 +32,10 @@ std::string	Client::getUser() const {
 
 std::string	Client::getBuffer() const {
 	return _buffer;
+}
+
+std::string	Client::getIp() const {
+	return _ip;
 }
 
 

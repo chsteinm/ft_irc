@@ -45,13 +45,26 @@ class   Channel;
 
 static bool exitSIG = false;
 
+struct channel {
+		std::string					name;
+		std::string					topic;
+		std::vector<std::string>	clients;
+		std::vector<std::string>	operators;
+		std::vector<std::string>	invitedClients;
+		std::string					password;
+		bool						invitOnly;
+		bool						topicOpOnly;
+		bool						isPass;
+		int							limit;
+};
+
 class Server {
     private:
         const char*					_password;
 		std::vector<pollfd>			_sockets;
 		int 						_server_fd;
 		std::map<int, Client*>		_clients;
-		std::map<int, Channel*>		_channels;
+		std::map<int, channel>		_channels;
 		std::map<std::string, void (Server::*)(Client*, std::vector<std::string>)> _cmdMap;
 	
     public:

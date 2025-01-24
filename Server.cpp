@@ -49,7 +49,6 @@ void    Server::removeClient(int client_fd) {
     close(client_fd);
 }
 
-//
 std::vector<std::string>	Server::splitCmd(std::string str) {
     std::vector<std::string>    cmd;
     size_t pos, last = 0;
@@ -192,11 +191,11 @@ void    Server::cap(Client* client, std::vector<std::string> args) {
 
 void    Server::pass(Client* client, std::vector<std::string> args) {
     if (args.size() < 2)
-        sendMessageToClient(client->getFd(), ERR_NEEDMOREPARAMS(client->getNick(), args[0]));
+        sendMessageToClient(client->getFd(), std::string(PREFIX) + ERR_NEEDMOREPARAMS(client->getNick(), args[0]));
     else if (client->getRegisterStatus() > NOT_REGISTERED)
-        sendMessageToClient(client->getFd(), ERR_ALREADYREGISTRE(client->getNick()));
+        sendMessageToClient(client->getFd(), std::string(PREFIX) + ERR_ALREADYREGISTRE(client->getNick()));
     else if (args[1] != this->_password)
-        sendMessageToClient(client->getFd(), ERR_PASSWDMISMATCH(client->getNick()));
+        sendMessageToClient(client->getFd(), std::string(PREFIX) + ERR_PASSWDMISMATCH(client->getNick()));
     else
         client->setRegister(PASS_OK);
 }
@@ -215,11 +214,11 @@ bool	checkNick(std::string nick)
 
 void    Server::nick(Client* client, std::vector<std::string> args) {
     if (args.size() < 2)
-        sendMessageToClient(client->getFd(), ERR_NONICKNAMEGIVEN(client->getNick()));
+        sendMessageToClient(client->getFd(), std::string(PREFIX) + ERR_NONICKNAMEGIVEN(client->getNick()));
     else if (!checkNick(args[1]))
-        sendMessageToClient(client->getFd(), ERR_ERRONEUSNICKNAME(args[1]));
+        sendMessageToClient(client->getFd(), std::string(PREFIX) + ERR_ERRONEUSNICKNAME(args[1]));
     else if (findClientWithNick(args[1]))
-        sendMessageToClient(client->getFd(), ERR_NICKNAMEINUSE(args[1]));
+        sendMessageToClient(client->getFd(), std::string(PREFIX) + ERR_NICKNAMEINUSE(args[1]));
     else if (client->getRegisterStatus() >= PASS_OK) {
         client->setNick(args[1]);
         client->setRegister(NICK_OK);
@@ -228,21 +227,45 @@ void    Server::nick(Client* client, std::vector<std::string> args) {
 
 void    Server::user(Client* client, std::vector<std::string> args) {
     if (args.size() < 5)
-        sendMessageToClient(client->getFd(), ERR_NEEDMOREPARAMS(client->getNick(), args[0]));
+        sendMessageToClient(client->getFd(), std::string(PREFIX) + ERR_NEEDMOREPARAMS(client->getNick(), args[0]));
     else if (client->getRegisterStatus() == REGISTERED)
-        sendMessageToClient(client->getFd(), ERR_ALREADYREGISTRE(client->getNick()));
+        sendMessageToClient(client->getFd(), std::string(PREFIX) + ERR_ALREADYREGISTRE(client->getNick()));
     client->setUser(args[1]);
 	client->setRealName(args[4]);
     if (client->getRegisterStatus() == NICK_OK) {
         client->setRegister(REGISTERED);
-        sendMessageToClient(client->getFd(), RPL_WELCOME(client->getNick(), args[1], client->getIp()));
+        sendMessageToClient(client->getFd(), std::string(PREFIX) + RPL_WELCOME(client->getNick(), args[1], client->getIp()));
     }
+}
+
+std::vector<std::string>    split(std::string str, const char* __s) {
+    std::vector<std::string>    vec;
+    size_t pos, last = 0;
+
+    while ((pos = str.find_first_of(__s, last)) != std::string::npos) {
+        vec.push_back(str.substr(last, pos - last));
+        last = pos + 1;
+    }
+    if (last < str.size()) {
+        vec.push_back(str.substr(last));
+    }
+	return vec;
 }
 
 void    Server::join(Client* client, std::vector<std::string> args) {
     if (args.size() < 2)
-        sendMessageToClient(client->getFd(), ERR_NEEDMOREPARAMS(client->getNick(), args[0]));
-    
+        return sendMessageToClient(client->getFd(), std::string(PREFIX) + ERR_NEEDMOREPARAMS(client->getNick(), args[0]));
+    if (args[1] == "0")
+        return; //leaveAllChannels
+    std::vector<std::string>    channelsNames = split(args[1], ",");
+    std::vector<std::string>    keys = (args.size() > 1) ? split(args[2], ",") : std::vector<std::string>();
+    for (std::size_t i = 0; i < args.size(); i++) {
+        if ((channelsNames[i][0] != '#' && channelsNames[i][0] != '&') || channelsNames[i].size() < 2) {
+            sendMessageToClient(client->getFd(), std::string(PREFIX) + ERR_ERRONEUSCHANNEL(client->getNick(), channelsNames[i]));
+            continue;
+        }
+        
+    }
 }
 
 void    Server::privmsg(Client* client, std::vector<std::string> args) {

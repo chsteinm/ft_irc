@@ -19,10 +19,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
+#include <algorithm>
 
 #include "Client.hpp"
 #include "Replies.hpp"
-#include "Channel.hpp"
 // #include <list>
 // #include "Commands.hpp"
 
@@ -41,15 +41,14 @@
 #endif
 
 class	Client;
-class   Channel;
 
 static bool exitSIG = false;
 
 struct channel {
 		std::string					name;
 		std::string					topic;
-		std::vector<std::string>	clients;
-		std::vector<std::string>	operators;
+		std::vector<int>			clientsFd;
+		std::vector<int>			operators;
 		std::vector<std::string>	invitedClients;
 		std::string					password;
 		bool						invitOnly;
@@ -60,11 +59,11 @@ struct channel {
 
 class Server {
     private:
+		int 						_server_fd;
         const char*					_password;
 		std::vector<pollfd>			_sockets;
-		int 						_server_fd;
 		std::map<int, Client*>		_clients;
-		std::map<int, channel>		_channels;
+		std::map<std::string, channel>		_channels;
 		std::map<std::string, void (Server::*)(Client*, std::vector<std::string>)> _cmdMap;
 	
     public:
@@ -78,12 +77,15 @@ class Server {
 		void	addClient();
 		void	handleReception(int client_fd);
 		void	removeClient(int client_fd);
+		void	removeClientFromAllChannels(int client_fd);
+		int		removeClientFromChannel(int client_fd, const std::string& chaName);
 
 		std::vector<std::string>	splitCmd(std::string str);
 
 		Client*	findClientWithNick(std::string nick);
 
 		void	sendMessageToClient(int client_fd, const std::string &message);
+		void	sendMessageToChannel(const std::string &channelName, const std::string &message);
 		
 		void	initCmdMap();
 		void	cap(Client* client, std::vector<std::string> cmd);
@@ -97,6 +99,11 @@ class Server {
 		void	kick(Client* client, std::vector<std::string> cmd);
 		void	invite(Client* client, std::vector<std::string> cmd);
 		void	quit(Client* client, std::vector<std::string> cmd);
+		void	who(Client* client, std::vector<std::string> cmd);
+		
+		//for join :
+		void	names(Client* client, channel& cha);
+		void	part(Client* client);
 };
 
 #endif

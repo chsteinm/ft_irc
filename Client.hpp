@@ -12,6 +12,7 @@ class Client {
 		std::string	_user;
 		std::string	_realName;
 		std::string	_buffer;
+		bool		_disconnected;
 	public:
 		Client();
 		Client(int fd, std::string clientIP);
@@ -25,6 +26,7 @@ class Client {
 		std::string	getRealName() const;
 		std::string	getBuffer() const;
 		std::string	getIp() const;
+		bool		getDisconnected() const;
 
 		//Setters
 		void	setNick(std::string& nickName);
@@ -32,6 +34,7 @@ class Client {
 		void	setUser(std::string& userName);
 		void	setRealName(std::string& RealName);
 		void	setBuffer(std::string receivedBuff);
+		void	setDisconnected(bool status);
 
 		void	clearBuff();
 };

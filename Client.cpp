@@ -7,6 +7,7 @@ Client::Client()
 
 Client::Client(int fd, std::string ip) : _fd(fd), _ip(ip) {
 	_registered = NOT_REGISTERED;
+	_disconnected = false;
 }
 
 Client::~Client(){}
@@ -20,6 +21,10 @@ int		Client::getFd() const {
 
 int		Client::getRegisterStatus() const {
 	return _registered;
+}
+
+bool	Client::getDisconnected() const {
+	return _disconnected;
 }
 
 std::string	Client::getNick() const {
@@ -61,9 +66,14 @@ void	Client::setBuffer(std::string recievedBuff) {
 	_buffer += recievedBuff;
 }
 
+void	Client::setDisconnected(bool status) {
+	_disconnected = status;
+}
+
 void	Client::clearBuff() {
 		_buffer.clear();
 }
+
 
 // void	Client::setFd(int fd) {
 // 	_fd = fd;

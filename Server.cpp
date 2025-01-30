@@ -6,7 +6,7 @@ void    Server::makeNonBlocking(int fd)
         throw std::runtime_error("Fcntl failed");
 }
 
-bool isClientOperator(const std::vector<int>& vec, int clientFd) {
+bool isClient(const std::vector<int>& vec, int clientFd) {
     return std::find(vec.begin(), vec.end(), clientFd) != vec.end();
 }
 
@@ -51,12 +51,23 @@ int    eraseFdInVector(std::vector<int>& vec, int fd) {
     return 0;
 }
 
+void    Server::removeEmptyChannels() {
+    for (std::vector<std::string>::iterator it = _channelsToRemove.begin(); it != _channelsToRemove.end(); it++)
+        _channels.erase(*it);
+    _channelsToRemove.clear();
+}
+
 int    Server::removeClientFromChannel(int client_fd, const std::string& chaName) {
     std::map<std::string, channel>::iterator it = _channels.find(chaName);
     if (it == _channels.end())
         return 0;
     eraseFdInVector(it->second.operators, client_fd);
-    return eraseFdInVector(it->second.clientsFd, client_fd);
+    if (eraseFdInVector(it->second.clientsFd, client_fd)) {
+        if (it->second.clientsFd.empty())
+            _channelsToRemove.push_back(chaName);
+        return 1;
+    }
+    return 0;
 }
 
 // void    Server::removeClientFromAllChannels(int client_fd) {
@@ -72,6 +83,7 @@ void    Server::part(Client* client) {
             sendMessageToClient(client->getFd(), PART(client->getNick(), client->getUser(), client->getIp(), it->second.name));
         }
     }
+    removeEmptyChannels();
 }
 
 void    Server::removeClient(int client_fd) {
@@ -86,6 +98,7 @@ void    Server::removeClient(int client_fd) {
     }
     // removeClientFromAllChannels(client_fd);
     close(client_fd);
+    removeEmptyChannels();
 }
 
 std::vector<std::string>	Server::splitCmd(std::string str) {
@@ -115,6 +128,9 @@ void    Server::handleReception(int client_fd) {
         return;
     }
 
+    if (DEBUG_MODE)
+        std::cout << "\033[36mData receive from client " << client_fd << ":\n" << buffer << "\033[0m" << std::endl;
+
     _clients[client_fd]->setBuffer(buffer);
     if (_clients[client_fd]->getBuffer().find_first_of("\r\n") == std::string::npos)
         return;
@@ -133,9 +149,6 @@ void    Server::handleReception(int client_fd) {
             }
         }
     }
-    if (DEBUG_MODE)
-        std::cout << "\033[36mData receive from client " << client_fd << ":\n" << _clients[client_fd]->getBuffer() << "\033[0m" << std::endl;
-
     _clients[client_fd]->clearBuff();
 }
 
@@ -303,7 +316,7 @@ std::vector<std::string>    split(std::string str, const char* __s) {
 void    Server::names(Client* client, channel& cha) {
     std::ostringstream nameList;
     for (std::vector<int>::iterator it = cha.clientsFd.begin(); it != cha.clientsFd.end(); ++it) {
-        if (isClientOperator(cha.clientsFd, *it))
+        if (isClient(cha.clientsFd, *it))
             nameList << "@" << _clients[*it]->getNick() << " ";
         else
             nameList << _clients[*it]->getNick() << " ";
@@ -334,7 +347,22 @@ void    Server::join(Client* client, std::vector<std::string> args) {
             _channels[channelsNames[i]] = newChannel;
         }
         else {
-            //
+            channel& cha = _channels[channelsNames[i]];
+            if (cha.invitOnly) {
+                if (!isClient(cha.invitedClients, client->getFd())) {
+                    sendMessageToClient(client->getFd(), std::string(PREFIX) + ERR_INVITEONLYCHAN(client->getNick(), cha.name));
+                    continue;
+                }
+            }
+            if (cha.limit && cha.clientsFd.size() >= cha.limit) {
+                sendMessageToClient(client->getFd(), std::string(PREFIX) + ERR_INVITEONLYCHAN(client->getNick(), cha.name));
+                continue;
+            }
+            if (cha.isPass && (keys.size() < i + 1 || keys[i] != cha.password)) {
+                sendMessageToClient(client->getFd(), std::string(PREFIX) + ERR_BADCHANNELKEY(client->getNick(), cha.name));
+                continue;
+            }
+            
         }
         sendMessageToChannel(channelsNames[i], JOIN(client->getNick(), client->getUser(), client->getIp(), channelsNames[i]));
         if (_channels[channelsNames[i]].topic.empty())
@@ -360,9 +388,15 @@ void    Server::topic(Client* client, std::vector<std::string> args) {
 void    Server::mode(Client* client, std::vector<std::string> args) {
     if (args.size() < 2)
         return sendMessageToClient(client->getFd(), std::string(PREFIX) + ERR_NEEDMOREPARAMS(client->getNick(), args[0]));
-    if (_channels.find(args[1]) == _channels.end())
+    std::map<std::string, channel>::iterator itCha = _channels.find(args[1]);
+    if (itCha == _channels.end())
         return sendMessageToClient(client->getFd(), std::string(PREFIX) + ERR_NOSUCHCHANNEL(client->getNick(), args[1]));
-    
+    channel cha = itCha->second;
+    if (!isClient(cha.operators, client->getFd()))
+        return sendMessageToClient(client->getFd(), std::string(PREFIX) + ERR_CHANOPRIVSNEEDED(client->getNick(), args[1]));
+    // if (!isClient(cha.clientsFd, client->getFd()))
+    //     return sendMessageToClient(client->getFd(), std::string(PREFIX) + ERR_USERNOTINCHANNEL(client->getNick(), args[1]));
+
 }
 
 void    Server::kick(Client* client, std::vector<std::string> args) {

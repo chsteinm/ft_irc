@@ -49,12 +49,14 @@ struct channel {
 		std::string					topic;
 		std::vector<int>			clientsFd;
 		std::vector<int>			operators;
-		std::vector<std::string>	invitedClients;
+		std::vector<int>			invitedClients;
 		std::string					password;
 		bool						invitOnly;
 		bool						topicOpOnly;
 		bool						isPass;
-		int							limit;
+		std::size_t					limit;
+
+		channel() : invitOnly(false), topicOpOnly(false), isPass(false), limit(0) {}
 };
 
 class Server {
@@ -63,6 +65,7 @@ class Server {
         const char*					_password;
 		std::vector<pollfd>			_sockets;
 		std::map<int, Client*>		_clients;
+		std::vector<std::string>	_channelsToRemove;
 		std::map<std::string, channel>		_channels;
 		std::map<std::string, void (Server::*)(Client*, std::vector<std::string>)> _cmdMap;
 	
@@ -86,6 +89,8 @@ class Server {
 
 		void	sendMessageToClient(int client_fd, const std::string &message);
 		void	sendMessageToChannel(const std::string &channelName, const std::string &message);
+
+		void	removeEmptyChannels();
 		
 		void	initCmdMap();
 		void	cap(Client* client, std::vector<std::string> cmd);

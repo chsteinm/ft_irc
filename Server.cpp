@@ -24,6 +24,10 @@ Client* Server::findClientWithNick(std::string nick) {
     return NULL;
 }
 
+std::string	Server::returnUserPrefix(Client* user) const {
+    return ":" + user->getNick() + "!" + user->getUser() + "@" + user->getHost();
+}
+
 void    Server::addClient() {
     sockaddr_in clientAddr;
     socklen_t clientLen = sizeof(clientAddr);
@@ -79,8 +83,8 @@ int    Server::removeClientFromChannel(int client_fd, const std::string& chaName
 void    Server::part(Client* client) {
     for (std::map<std::string, channel>::iterator it = _channels.begin(); it != _channels.end(); ++it) {
         if (removeClientFromChannel(client->getFd(), it->second.name)) {
-            sendMessageToChannel(it->second.name, PART(client->getNick(), client->getUser(), client->getIp(), it->second.name));
-            sendMessageToClient(client->getFd(), PART(client->getNick(), client->getUser(), client->getIp(), it->second.name));
+            sendMessageToChannel(it->second.name, PART(client->getNick(), client->getUser(), client->getHost(), it->second.name));
+            sendMessageToClient(client->getFd(), PART(client->getNick(), client->getUser(), client->getHost(), it->second.name));
         }
     }
     removeEmptyChannels();
@@ -295,7 +299,7 @@ void    Server::user(Client* client, std::vector<std::string> args) {
 	client->setRealName(args[4]);
     if (client->getRegisterStatus() == NICK_OK) {
         client->setRegister(REGISTERED);
-        sendMessageToClient(client->getFd(), std::string(PREFIX) + RPL_WELCOME(client->getNick(), args[1], client->getIp()));
+        sendMessageToClient(client->getFd(), std::string(PREFIX) + RPL_WELCOME(client->getNick(), args[1], client->getHost()));
     }
 }
 
@@ -316,7 +320,7 @@ std::vector<std::string>    split(std::string str, const char* __s) {
 void    Server::names(Client* client, channel& cha) {
     std::ostringstream nameList;
     for (std::vector<int>::iterator it = cha.clientsFd.begin(); it != cha.clientsFd.end(); ++it) {
-        if (isClient(cha.clientsFd, *it))
+        if (isClient(cha.operators, *it))
             nameList << "@" << _clients[*it]->getNick() << " ";
         else
             nameList << _clients[*it]->getNick() << " ";
@@ -329,7 +333,7 @@ void    Server::join(Client* client, std::vector<std::string> args) {
     if (args.size() < 2)
         return sendMessageToClient(client->getFd(), std::string(PREFIX) + ERR_NEEDMOREPARAMS(client->getNick(), args[0]));
     if (args[1] == "0")
-        return part(client); //leaveAllChannels
+        return part(client);
     std::vector<std::string>    channelsNames = split(args[1], ",");
     std::vector<std::string>    keys = (args.size() > 2) ? split(args[2], ",") : std::vector<std::string>();
     for (std::size_t i = 0; i < channelsNames.size(); i++) {
@@ -355,16 +359,16 @@ void    Server::join(Client* client, std::vector<std::string> args) {
                 }
             }
             if (cha.limit && cha.clientsFd.size() >= cha.limit) {
-                sendMessageToClient(client->getFd(), std::string(PREFIX) + ERR_INVITEONLYCHAN(client->getNick(), cha.name));
+                sendMessageToClient(client->getFd(), std::string(PREFIX) + ERR_CHANNELISFULL(client->getNick(), cha.name));
                 continue;
             }
             if (cha.isPass && (keys.size() < i + 1 || keys[i] != cha.password)) {
                 sendMessageToClient(client->getFd(), std::string(PREFIX) + ERR_BADCHANNELKEY(client->getNick(), cha.name));
                 continue;
             }
-            
+            cha.clientsFd.push_back(client->getFd());
         }
-        sendMessageToChannel(channelsNames[i], JOIN(client->getNick(), client->getUser(), client->getIp(), channelsNames[i]));
+        sendMessageToChannel(channelsNames[i], JOIN(client->getNick(), client->getUser(), client->getHost(), channelsNames[i]));
         if (_channels[channelsNames[i]].topic.empty())
             sendMessageToClient(client->getFd(), std::string(PREFIX) + RPL_NOTOPIC(client->getNick(), channelsNames[i]));
         else
@@ -391,12 +395,64 @@ void    Server::mode(Client* client, std::vector<std::string> args) {
     std::map<std::string, channel>::iterator itCha = _channels.find(args[1]);
     if (itCha == _channels.end())
         return sendMessageToClient(client->getFd(), std::string(PREFIX) + ERR_NOSUCHCHANNEL(client->getNick(), args[1]));
-    channel cha = itCha->second;
+    channel& cha = itCha->second;
     if (!isClient(cha.operators, client->getFd()))
         return sendMessageToClient(client->getFd(), std::string(PREFIX) + ERR_CHANOPRIVSNEEDED(client->getNick(), args[1]));
-    // if (!isClient(cha.clientsFd, client->getFd()))
-    //     return sendMessageToClient(client->getFd(), std::string(PREFIX) + ERR_USERNOTINCHANNEL(client->getNick(), args[1]));
-
+    if (args.size() < 3 || args[2].empty())
+        return;
+    char sign = args[2][0];
+    if ((sign != '+' && sign != '-') || args[2].size() < 2)
+        return sendMessageToClient(client->getFd(), std::string(PREFIX) + ERR_UNKNOWNMODE(client->getNick(), args[1], sign));
+    if (args[2][1] == 'k') {
+        if (sign == '+') {
+            if (args.size() < 4)
+                return sendMessageToClient(client->getFd(), std::string(PREFIX) + ERR_NEEDMOREPARAMS(client->getNick(), args[0]));
+            else if (cha.isPass)
+                return sendMessageToClient(client->getFd(), std::string(PREFIX) + ERR_KEYSET(client->getNick(), args[1]));
+            else {
+                cha.isPass = true;
+                cha.password = args[3];
+            }
+        }
+        else {
+            cha.isPass = false;
+            cha.password.clear();
+        }
+    }
+    else if (args[2][1] == 'i') {
+        if (sign == '+')
+            cha.invitOnly = true;
+        else
+            cha.invitOnly = false;
+    }
+    else if (args[2][1] == 't') {
+        if (sign == '+')
+            cha.topicOpOnly = true;
+        else
+            cha.topicOpOnly = false;
+    }
+    else if (args[2][1] == 'l') {
+        if (sign == '+') {
+            if (args.size() < 4)
+                return sendMessageToClient(client->getFd(), std::string(PREFIX) + ERR_NEEDMOREPARAMS(client->getNick(), "MODE +l"));
+            std::istringstream ss(args[3]);
+            std::size_t limitNb;
+            ss >> limitNb;
+            if (ss.fail() || !ss.eof() || limitNb < cha.clientsFd.size())
+                return sendMessageToClient(client->getFd(), std::string(PREFIX) + ERR_ERROR(client->getNick(), cha.name, std::string(ERR_LIMIT_NB)));
+            cha.limit = limitNb;
+            if (DEBUG_MODE)
+                std::cout << "[DEBUG] Limit of channel " + cha.name + " set to " << limitNb << " by client " << client->getFd() << std::endl;
+            return sendMessageToChannel(cha.name, MODE_L_ON(returnUserPrefix(client), cha.name, args[3]));
+        }
+        else {
+            if (cha.limit) {
+                cha.limit = false;
+                return sendMessageToChannel(cha.name, MODE_L_OFF(returnUserPrefix(client), cha.name));
+            }
+        }
+    }
+    
 }
 
 void    Server::kick(Client* client, std::vector<std::string> args) {

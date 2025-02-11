@@ -7,7 +7,7 @@ class Client {
 	private:
 		int			_fd;
 		int			_registered;
-		std::string	_ip;
+		std::string	_host;
 		std::string	_nick;
 		std::string	_user;
 		std::string	_realName;
@@ -25,7 +25,7 @@ class Client {
 		std::string	getUser() const;
 		std::string	getRealName() const;
 		std::string	getBuffer() const;
-		std::string	getIp() const;
+		std::string	getHost() const;
 		bool		getDisconnected() const;
 
 		//Setters

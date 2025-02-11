@@ -5,7 +5,7 @@ Client::Client()
 	_fd = -1;
 }
 
-Client::Client(int fd, std::string ip) : _fd(fd), _ip(ip) {
+Client::Client(int fd, std::string host) : _fd(fd), _host(host) {
 	_registered = NOT_REGISTERED;
 	_disconnected = false;
 }
@@ -39,8 +39,8 @@ std::string	Client::getBuffer() const {
 	return _buffer;
 }
 
-std::string	Client::getIp() const {
-	return _ip;
+std::string	Client::getHost() const {
+	return _host;
 }
 
 

@@ -86,6 +86,7 @@ class Server {
 		std::vector<std::string>	splitCmd(std::string str);
 
 		Client*	findClientWithNick(std::string nick);
+		std::string	returnUserPrefix(Client* client) const;
 
 		void	sendMessageToClient(int client_fd, const std::string &message);
 		void	sendMessageToChannel(const std::string &channelName, const std::string &message);
